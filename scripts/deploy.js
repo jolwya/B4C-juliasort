@@ -40,9 +40,9 @@ async function main() {
   }
 
   console.log("🚀 Deploying FairTicket.sol to BSC Testnet...");
-  // Pass the deployer's address as the initial aiAgent address so they can test immediately
+  // Pass deployer as initial aiAgent, 100 max tickets
   const factory = new ethers.ContractFactory(abi, bytecode, wallet);
-  const contract = await factory.deploy(wallet.address);
+  const contract = await factory.deploy(wallet.address, 100);
 
   console.log(`⏳ Transaction submitted: ${contract.deploymentTransaction().hash}`);
   console.log("⏳ Waiting for block confirmation on BSC (takes ~0.5s)...");

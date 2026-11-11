@@ -2,117 +2,160 @@
 pragma solidity ^0.8.20;
 
 /**
- * @title FairTicket
- * @dev Anti-scalp event ticketing with on-chain price ceilings and AI-driven scalper slashing.
- * Built for BCC Hackathon 2026 on BNB Smart Chain Testnet.
+ * @title FairPass
+ * @notice Anti-scalp event ticketing with Fair Resale Queue on BNB Smart Chain.
+ *
+ *  Core rules enforced in bytecode:
+ *    1. Tickets are bought at a fixed FACE_VALUE.
+ *    2. NO peer-to-peer transfers. A holder can only return the ticket
+ *       to the on-chain FairVault.
+ *    3. The vault refunds the seller at most 105% of face value.
+ *    4. The AI agent (or organizer) awards the returned ticket to the
+ *       next verified fan on the waitlist — scalpers cannot choose buyers.
+ *    5. Tickets flagged for off-platform scalping are slashed permanently.
  */
-contract FairTicket {
+contract FairPass {
+    // ── Roles ──────────────────────────────────────────────
     address public organizer;
     address public aiAgent;
-    uint256 public constant FACE_VALUE = 0.002 ether; // 0.002 tBNB fixed face value
+
+    // ── Pricing ────────────────────────────────────────────
+    uint256 public constant FACE_VALUE   = 0.002 ether;   // ~₱200
+    uint256 public constant MAX_RESALE   = 0.0021 ether;  // 105 % cap
+    uint256 public constant BOUNTY       = 0.0005 ether;
+
+    // ── Counters ───────────────────────────────────────────
     uint256 public nextTicketId = 1;
+    uint256 public maxTickets;
+
+    // ── Data ───────────────────────────────────────────────
+    enum Status { AVAILABLE, OWNED, IN_VAULT, REDEEMED, SLASHED }
 
     struct Ticket {
         address owner;
-        bool isUsed;
-        bool isSlashed; // Flagged & invalidated for scalping
+        Status  status;
     }
 
     mapping(uint256 => Ticket) public tickets;
+    mapping(address => bool)   public verifiedFans;
 
-    event TicketMinted(uint256 indexed ticketId, address indexed buyer, uint256 price);
-    event TicketResold(uint256 indexed ticketId, address indexed oldOwner, address indexed newOwner, uint256 price);
-    event TicketSlashed(uint256 indexed ticketId, string reason, address indexed whistleblower);
-    event TicketRedeemed(uint256 indexed ticketId);
+    // Waitlist (simple FIFO queue)
+    address[] public waitlist;
+    uint256   public waitlistHead;
 
-    modifier onlyOrganizer() {
-        require(msg.sender == organizer, "Only organizer can call this");
-        _;
-    }
+    // ── Events ─────────────────────────────────────────────
+    event TicketPurchased(uint256 indexed id, address indexed buyer);
+    event TicketReturnedToVault(uint256 indexed id, address indexed seller, uint256 refund);
+    event TicketAwardedFromQueue(uint256 indexed id, address indexed newOwner);
+    event TicketRedeemed(uint256 indexed id);
+    event TicketSlashed(uint256 indexed id, string reason, address indexed whistleblower);
+    event FanVerified(address indexed fan);
+    event FanJoinedWaitlist(address indexed fan);
 
+    // ── Modifiers ──────────────────────────────────────────
     modifier onlyAgentOrOrganizer() {
-        require(msg.sender == aiAgent || msg.sender == organizer, "Unauthorized: AI Agent or Organizer only");
+        require(msg.sender == aiAgent || msg.sender == organizer, "Unauthorized");
         _;
     }
 
-    constructor(address _aiAgent) {
-        organizer = msg.sender;
-        aiAgent = _aiAgent;
+    // ── Constructor ────────────────────────────────────────
+    constructor(address _aiAgent, uint256 _maxTickets) {
+        organizer  = msg.sender;
+        aiAgent    = _aiAgent;
+        maxTickets = _maxTickets;
     }
 
-    function setAiAgent(address _newAgent) external onlyOrganizer {
-        aiAgent = _newAgent;
+    // ── 0. Fan Verification (AI or Organizer) ──────────────
+    function verifyFan(address fan) external onlyAgentOrOrganizer {
+        verifiedFans[fan] = true;
+        emit FanVerified(fan);
     }
 
-    // 1. Primary Purchase: Student buys ticket at exact face value
+    // ── 1. Primary Purchase ────────────────────────────────
     function buyTicket() external payable returns (uint256) {
-        require(msg.value == FACE_VALUE, "Exact face value required (0.002 tBNB)");
+        require(verifiedFans[msg.sender], "FairPass: fan not verified");
+        require(msg.value == FACE_VALUE, "FairPass: exact face value required");
+        require(nextTicketId <= maxTickets, "FairPass: sold out");
 
-        uint256 ticketId = nextTicketId++;
-        tickets[ticketId] = Ticket({
-            owner: msg.sender,
-            isUsed: false,
-            isSlashed: false
-        });
-
-        emit TicketMinted(ticketId, msg.sender, msg.value);
-        return ticketId;
+        uint256 id = nextTicketId++;
+        tickets[id] = Ticket(msg.sender, Status.OWNED);
+        emit TicketPurchased(id, msg.sender);
+        return id;
     }
 
-    // 2. Anti-Scalp Ceiling: Resale on-chain CANNOT exceed face value
-    function resaleTicket(uint256 ticketId, address newOwner) external payable {
-        Ticket storage t = tickets[ticketId];
-        require(msg.sender == t.owner, "Not ticket owner");
-        require(!t.isUsed, "Ticket already redeemed");
-        require(!t.isSlashed, "Ticket has been slashed for fraud");
-        
-        // --- HARDCODED SMART CONTRACT LAW ---
-        require(msg.value <= FACE_VALUE, "ANTI-SCALP VIOLATION: Resale price exceeds face value cap!");
+    // ── 2. Return to Vault (NO peer-to-peer) ──────────────
+    //  Seller gets refunded up to 105 % of face value from the vault.
+    function returnToVault(uint256 id) external {
+        Ticket storage t = tickets[id];
+        require(msg.sender == t.owner, "FairPass: not your ticket");
+        require(t.status == Status.OWNED, "FairPass: ticket not in OWNED state");
 
-        address previousOwner = t.owner;
-        t.owner = newOwner;
+        t.status = Status.IN_VAULT;
+        t.owner  = address(this);
 
-        // Refund previous owner
-        (bool success, ) = payable(previousOwner).call{value: msg.value}("");
-        require(success, "Payment refund failed");
+        // Refund seller (capped at MAX_RESALE)
+        uint256 refund = address(this).balance >= MAX_RESALE ? MAX_RESALE : FACE_VALUE;
+        (bool ok, ) = payable(msg.sender).call{value: refund}("");
+        require(ok, "FairPass: refund failed");
 
-        emit TicketResold(ticketId, previousOwner, newOwner, msg.value);
+        emit TicketReturnedToVault(id, msg.sender, refund);
     }
 
-    // 3. AI Agent Action: Slashes tickets caught scalping off-platform
-    function slashScalpedTicket(uint256 ticketId, address whistleblower, string calldata reason) 
-        external 
-        onlyAgentOrOrganizer 
+    // ── 3. Join Waitlist ───────────────────────────────────
+    function joinWaitlist() external payable {
+        require(verifiedFans[msg.sender], "FairPass: fan not verified");
+        require(msg.value == FACE_VALUE, "FairPass: deposit face value to join");
+        waitlist.push(msg.sender);
+        emit FanJoinedWaitlist(msg.sender);
+    }
+
+    // ── 4. Award from Queue (AI Agent) ─────────────────────
+    function awardFromQueue(uint256 id) external onlyAgentOrOrganizer {
+        Ticket storage t = tickets[id];
+        require(t.status == Status.IN_VAULT, "FairPass: ticket not in vault");
+        require(waitlistHead < waitlist.length, "FairPass: waitlist empty");
+
+        address nextFan = waitlist[waitlistHead];
+        waitlistHead++;
+
+        t.owner  = nextFan;
+        t.status = Status.OWNED;
+
+        emit TicketAwardedFromQueue(id, nextFan);
+    }
+
+    // ── 5. Gate Check-in ───────────────────────────────────
+    function redeemAtGate(uint256 id) external onlyAgentOrOrganizer {
+        Ticket storage t = tickets[id];
+        require(t.status == Status.OWNED, "FairPass: cannot redeem");
+        t.status = Status.REDEEMED;
+        emit TicketRedeemed(id);
+    }
+
+    // ── 6. Slash (AI Scalper Bouncer) ──────────────────────
+    function slashTicket(uint256 id, address whistleblower, string calldata reason)
+        external
+        onlyAgentOrOrganizer
     {
-        Ticket storage t = tickets[ticketId];
-        require(t.owner != address(0), "Ticket does not exist");
-        require(!t.isSlashed, "Ticket already slashed");
+        Ticket storage t = tickets[id];
+        require(t.status != Status.SLASHED, "FairPass: already slashed");
+        t.status = Status.SLASHED;
 
-        t.isSlashed = true;
-
-        // Reward whistleblower student with a 0.0005 tBNB bounty if vault has funds
-        if (address(this).balance >= 0.0005 ether && whistleblower != address(0)) {
-            (bool bountySent, ) = payable(whistleblower).call{value: 0.0005 ether}("");
-            require(bountySent, "Bounty transfer failed");
+        if (address(this).balance >= BOUNTY && whistleblower != address(0)) {
+            (bool ok, ) = payable(whistleblower).call{value: BOUNTY}("");
+            require(ok, "FairPass: bounty failed");
         }
-
-        emit TicketSlashed(ticketId, reason, whistleblower);
+        emit TicketSlashed(id, reason, whistleblower);
     }
 
-    // 4. Gate Check-in: Single-use admission
-    function redeemAtGate(uint256 ticketId) external onlyAgentOrOrganizer {
-        Ticket storage t = tickets[ticketId];
-        require(t.owner != address(0), "Ticket does not exist");
-        require(!t.isSlashed, "ACCESS DENIED: Ticket was slashed for scalping!");
-        require(!t.isUsed, "ACCESS DENIED: Ticket already redeemed!");
-
-        t.isUsed = true;
-        emit TicketRedeemed(ticketId);
+    // ── Views ──────────────────────────────────────────────
+    function getTicket(uint256 id) external view returns (address, Status) {
+        Ticket memory t = tickets[id];
+        return (t.owner, t.status);
     }
 
-    function getTicket(uint256 ticketId) external view returns (address owner, bool isUsed, bool isSlashed) {
-        Ticket memory t = tickets[ticketId];
-        return (t.owner, t.isUsed, t.isSlashed);
+    function getWaitlistLength() external view returns (uint256) {
+        return waitlist.length - waitlistHead;
     }
 
     receive() external payable {}

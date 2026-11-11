@@ -48,14 +48,16 @@ if (output.errors) {
   }
 }
 
-const contract = output.contracts["FairTicket.sol"]["FairTicket"];
+const contractFile = output.contracts["FairTicket.sol"];
+const contractName = Object.keys(contractFile)[0]; // "FairPass" or "FairTicket"
+const contract = contractFile[contractName];
 const buildDir = path.join(projectRoot, "build");
 if (!fs.existsSync(buildDir)) {
   fs.mkdirSync(buildDir, { recursive: true });
 }
 
 const artifact = {
-  contractName: "FairTicket",
+  contractName: contractName,
   abi: contract.abi,
   bytecode: contract.evm.bytecode.object,
 };

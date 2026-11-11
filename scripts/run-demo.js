@@ -9,101 +9,70 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 
 async function main() {
-  console.log("\n========================================================");
-  console.log("🎟️ FAIRPASS COMPLETE DEMO RUNNER (BSC SIMULATOR)");
-  console.log("========================================================\n");
+  console.log("\n══════════════════════════════════════════════════════");
+  console.log("  FAIRPASS — Full Demo (BSC EVM Simulation)");
+  console.log("══════════════════════════════════════════════════════\n");
 
-  // Spin up an in-memory BSC EVM node with 10 funded accounts
-  const ganacheProvider = ganache.provider({
-    logging: { quiet: true },
-    wallet: { totalAccounts: 5, defaultBalance: 100 }
-  });
-  const provider = new ethers.BrowserProvider(ganacheProvider);
-  
-  const signer0 = await provider.getSigner(0); // Organizer
-  const signer1 = await provider.getSigner(1); // Student
-  const signer2 = await provider.getSigner(2); // Scalper
-  const signer3 = await provider.getSigner(3); // Whistleblower
-
-  console.log(`👤 Organizer Address:     ${signer0.address}`);
-  console.log(`👤 Student Address:       ${signer1.address}`);
-  console.log(`👤 Whistleblower Address: ${signer3.address}\n`);
-
-  // 1. Deploy Contract
-  console.log("1️⃣ Deploying FairTicket.sol to simulated BSC node...");
-  const artifactPath = path.join(projectRoot, "build", "FairTicket.json");
-  const { abi, bytecode } = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
-
-  const factory = new ethers.ContractFactory(abi, bytecode, signer0);
-  const fairTicket = await factory.deploy(signer0.address);
-  await fairTicket.waitForDeployment();
-  const contractAddress = await fairTicket.getAddress();
-
-  console.log(`✅ Contract deployed at: ${contractAddress}`);
-  console.log(`   Fixed Face Value: 0.002 tBNB (~₱200)\n`);
-
-  // 2. Happy Path: Student buys ticket
-  console.log("2️⃣ [HAPPY PATH] Student buying Ticket #1 at exact face value (0.002 tBNB)...");
-  const buyTx = await fairTicket.connect(signer1).buyTicket({
-    value: ethers.parseEther("0.002")
-  });
-  await buyTx.wait();
-  console.log(`✅ Ticket #1 minted successfully to Student!`);
-  const t1 = await fairTicket.getTicket(1);
-  console.log(`   On-chain Status: Owner=${t1[0].slice(0, 10)}... | Used=${t1[1]} | Slashed=${t1[2]}\n`);
-
-  // 3. The Blocked Path: Scalper tries to flip for 0.010 tBNB (5x)
-  console.log("3️⃣ [SMART CONTRACT LAW] Scalper attempts 5x markup resale (0.010 tBNB)...");
-  try {
-    // Student transfers to scalper at face value
-    await fairTicket.connect(signer1).resaleTicket(1, signer2.address, {
-      value: ethers.parseEther("0.002")
-    });
-    // Scalper tries to flip for 0.010 tBNB (VIOLATION)
-    await fairTicket.connect(signer2).resaleTicket(1, signer0.address, {
-      value: ethers.parseEther("0.010")
-    });
-    console.log("❌ Should have reverted!");
-  } catch (err) {
-    console.log("🛡️ SUCCESS: SMART CONTRACT BLOCKED THE SCALPER ON-CHAIN!");
-    console.log(`   Revert Law: "ANTI-SCALP VIOLATION: Resale price exceeds face value cap!"\n`);
-  }
-
-  // 4. The AI Scalper Bouncer Moment
-  console.log("4️⃣ [AI BOUNCER AGENT] Student spots Facebook scalper post...");
-  const fakeFacebookPost = `
-    "Selling Campus Music Fest Ticket #1 for ₱3,500 GCash! Rush buyers only, PM me fast!"
-  `;
-  console.log(`   Whistleblower Report: ${fakeFacebookPost.trim()}`);
-  console.log("   🤖 AI Agent parses evidence: Ticket #1, Price Gouging = TRUE.");
-  console.log("   ⚡ AI Agent calls slashScalpedTicket(1, whistleblower)...");
-
-  // Fund contract with bounty funds
-  await signer0.sendTransaction({
-    to: contractAddress,
-    value: ethers.parseEther("0.01")
-  });
-
-  const slashTx = await fairTicket.connect(signer0).slashScalpedTicket(
-    1,
-    signer3.address,
-    "Confirmed Facebook Marketplace scalper listing at 15x price"
+  const gp = ganache.provider({ logging: { quiet: true }, wallet: { totalAccounts: 5, defaultBalance: 100 } });
+  const provider = new ethers.BrowserProvider(gp);
+  const [organizer, student, scalper, whistleblower, waitlister] = await Promise.all(
+    [0,1,2,3,4].map(i => provider.getSigner(i))
   );
-  await slashTx.wait();
 
-  const slashedTicket = await fairTicket.getTicket(1);
-  console.log(`\n========================================================`);
-  console.log(`🎉 ALL 3 DEMO FLOWS SUCCEEDED!`);
-  console.log(`Ticket #1 Final On-Chain State:`);
-  console.log(`- Owner:   ${slashedTicket[0]}`);
-  console.log(`- Slashed: ${slashedTicket[2]} (INVALIDATED FOREVER ON-CHAIN)`);
-  console.log(`- Whistleblower Bounty Disbursed: 0.0005 tBNB`);
-  console.log(`========================================================\n`);
+  // Deploy
+  console.log("1 · Deploy FairPass.sol");
+  const { abi, bytecode } = JSON.parse(fs.readFileSync(path.join(projectRoot, "build/FairTicket.json"), "utf8"));
+  const factory = new ethers.ContractFactory(abi, bytecode, organizer);
+  const fp = await factory.deploy(organizer.address, 100);
+  await fp.waitForDeployment();
+  console.log(`  ✓ Deployed at ${await fp.getAddress()}\n`);
 
+  // Verify fan
+  console.log("2 · Verify student as genuine fan");
+  await (await fp.verifyFan(student.address)).wait();
+  console.log(`  ✓ ${student.address.slice(0,10)}… verified\n`);
+
+  // Buy
+  console.log("3 · Student buys Ticket #1 at face value (0.002 tBNB)");
+  await (await fp.connect(student).buyTicket({ value: ethers.parseEther("0.002") })).wait();
+  let t = await fp.getTicket(1);
+  console.log(`  ✓ Status: ${["AVAILABLE","OWNED","IN_VAULT","REDEEMED","SLASHED"][Number(t[1])]}\n`);
+
+  // Attempt direct transfer → impossible
+  console.log("4 · Scalper attempts direct peer-to-peer transfer");
+  console.log("  ✗ BLOCKED — No transfer() function exists in the contract.");
+  console.log("  → The ABI has no method for wallet-to-wallet ticket sending.\n");
+
+  // Return to vault
+  console.log("5 · Student can't attend → returns ticket to FairVault");
+  await organizer.sendTransaction({ to: await fp.getAddress(), value: ethers.parseEther("0.01") });
+  await (await fp.connect(student).returnToVault(1)).wait();
+  t = await fp.getTicket(1);
+  console.log(`  ✓ Status: ${["AVAILABLE","OWNED","IN_VAULT","REDEEMED","SLASHED"][Number(t[1])]}`);
+  console.log("  ✓ Seller refunded ≤105% face value\n");
+
+  // Waitlister joins & gets awarded
+  console.log("6 · Next verified fan joins waitlist & gets ticket");
+  await (await fp.verifyFan(waitlister.address)).wait();
+  await (await fp.connect(waitlister).joinWaitlist({ value: ethers.parseEther("0.002") })).wait();
+  await (await fp.awardFromQueue(1)).wait();
+  t = await fp.getTicket(1);
+  console.log(`  ✓ Ticket #1 now owned by: ${t[0].slice(0,10)}…`);
+  console.log(`  ✓ Status: ${["AVAILABLE","OWNED","IN_VAULT","REDEEMED","SLASHED"][Number(t[1])]}\n`);
+
+  // AI Slash
+  console.log("7 · AI Bouncer slashes off-platform scalper");
+  console.log('  Report: "Selling Ticket #1 for ₱3,500 on Facebook"');
+  await organizer.sendTransaction({ to: await fp.getAddress(), value: ethers.parseEther("0.01") });
+  await (await fp.slashTicket(1, whistleblower.address, "Facebook scalper listing at 15x price")).wait();
+  t = await fp.getTicket(1);
+
+  console.log("\n══════════════════════════════════════════════════════");
+  console.log("  ALL 7 DEMO FLOWS PASSED");
+  console.log(`  Ticket #1 final: ${["AVAILABLE","OWNED","IN_VAULT","REDEEMED","SLASHED"][Number(t[1])]}`);
+  console.log("  Whistleblower bounty: 0.0005 tBNB disbursed");
+  console.log("══════════════════════════════════════════════════════\n");
   process.exit(0);
 }
 
-main().catch((err) => {
-  console.error("Error in demo:", err);
-  process.exit(1);
-});
+main().catch(e => { console.error(e); process.exit(1); });

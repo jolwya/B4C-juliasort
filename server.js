@@ -98,6 +98,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`\n======================================================`);
-  console.log(`🦊 FairPass Live BSC Testnet Server: http://localhost:${PORT}`);
+  console.log(`🎟  Tickie Live BSC Testnet Server: http://localhost:${PORT}`);
   console.log(`======================================================\n`);
 });
