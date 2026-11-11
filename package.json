@@ -1,0 +1,22 @@
+{
+  "name": "fairpass",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "wallet": "node scripts/generate-wallet.js",
+    "check-balance": "node scripts/check-balance.js",
+    "deploy": "node scripts/deploy.js",
+    "agent": "node scripts/agent.js",
+    "demo": "node scripts/run-demo.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^3.1.0",
+    "@nomicfoundation/hardhat-ethers": "^4.2.2",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.4",
+    "ganache": "^7.9.2",
+    "hardhat": "^3.21.2",
+    "solc": "^0.8.38"
+  }
+}

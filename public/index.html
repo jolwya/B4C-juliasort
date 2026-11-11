@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FairPass · Anti-Scalp Ticketing on BSC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0e11;
+      --card-bg: #181a20;
+      --card-border: #2b313a;
+      --primary: #f0b90b;
+      --primary-hover: #fcd535;
+      --text: #eaecef;
+      --text-muted: #848e9c;
+      --red: #f6465d;
+      --green: #0ecb81;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      padding: 32px 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 20px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(240, 185, 11, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(240, 185, 11, 0.3);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #fff;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-top: 4px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      word-break: break-all;
+    }
+    .btn {
+      background: var(--primary);
+      color: #000;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+    .btn-danger {
+      background: rgba(246, 70, 93, 0.15);
+      color: var(--red);
+      border: 1px solid rgba(246, 70, 93, 0.4);
+    }
+    .btn-danger:hover { background: rgba(246, 70, 93, 0.3); }
+    .ticket-display {
+      background: #121418;
+      border: 2px dashed var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .ticket-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+    }
+    .ticket-status {
+      font-size: 0.85rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .status-valid { background: rgba(14, 203, 129, 0.2); color: var(--green); }
+    .status-slashed { background: rgba(246, 70, 93, 0.2); color: var(--red); }
+    textarea {
+      width: 100%;
+      height: 90px;
+      background: #121418;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      resize: vertical;
+    }
+    .log-box {
+      background: #000;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #39ff14;
+      min-height: 120px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .banner {
+      background: linear-gradient(90deg, rgba(240,185,11,0.1) 0%, rgba(11,14,17,0) 100%);
+      border-left: 4px solid var(--primary);
+      padding: 14px 18px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>FairPass 🎟️</h1>
+        <p class="subtitle">AI Scalper Bouncer & Price-Ceiling Ticketing on BNB Smart Chain</p>
+      </div>
+      <div class="badge">
+        <span class="status-dot"></span>
+        <span id="netInfo">BSC Testnet (Chain ID 97)</span>
+      </div>
+    </header>
+
+    <div class="banner">
+      <strong>🏆 BCC Hackathon Live Demo:</strong> 1 Flow · 1 Smart Contract · 1 AI Agent. 
+      Demonstrates the happy purchase flow, contract anti-scalp rejection, and real-time AI slashing of off-platform scalpers.
+    </div>
+
+    <!-- Contract Status Card -->
+    <div class="card">
+      <div class="card-title">🔗 Smart Contract Infrastructure</div>
+      <div class="mono" id="contractAddr">Contract: Loading...</div>
+      <div class="mono" id="walletBal">Deployer Balance: Loading...</div>
+    </div>
+
+    <div class="grid">
+      <!-- Action 1: Buy Ticket -->
+      <div class="card">
+        <div class="card-title">1️⃣ Student Purchase Flow</div>
+        <p class="subtitle">Campus Music Fest · Fixed Face Value: <strong>0.002 tBNB</strong> (~₱200)</p>
+        
+        <div class="ticket-display" id="ticketBox">
+          <div class="ticket-header">
+            <span>Ticket #1: Campus Pass</span>
+            <span class="ticket-status status-valid" id="ticketBadge">Available / Ready</span>
+          </div>
+          <div class="mono" id="ticketOwner">Owner: None yet</div>
+        </div>
+
+        <button class="btn" id="buyBtn" onclick="buyTicket()">
+          <span>⚡ Buy at Face Value (0.002 tBNB)</span>
+        </button>
+      </div>
+
+      <!-- Action 2: Scalper Rejection -->
+      <div class="card">
+        <div class="card-title">2️⃣ Smart Contract Law: Anti-Scalp</div>
+        <p class="subtitle">Simulate a scalper trying to flip Ticket #1 on-chain for <strong>0.010 tBNB</strong> (5x markup).</p>
+        
+        <div style="background: rgba(246,70,93,0.08); padding: 14px; border-radius: 8px; border: 1px solid rgba(246,70,93,0.2); font-size: 0.85rem; color: #ff99a8;">
+          ⚖️ <strong>Rule in Bytecode:</strong><br>
+          <code>require(msg.value &lt;= FACE_VALUE);</code><br>
+          The contract mathematically rejects any price gouging!
+        </div>
+
+        <button class="btn btn-danger" onclick="attemptScalp()">
+          <span>🚫 Attempt 5x Scalper Resale</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Action 3: AI Agent Scalper Hunter -->
+    <div class="card">
+      <div class="card-title">3️⃣ AI Scalper Bouncer (Whistleblower Report)</div>
+      <p class="subtitle">Scalpers don't sell inside the app—they post on Facebook/Telegram. Students report them here with screenshots/text.</p>
+      
+      <textarea id="reportInput">Spotted on Facebook UMAK Community: "Selling my Campus Music Fest Ticket #1 for ₱3,500 GCash! Rush buyers only, PM me fast!"</textarea>
+      
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button class="btn" style="background: #fff; color: #000;" onclick="submitReport()">
+          <span>🕵️ AI Agent: Inspect & Slash on BSC</span>
+        </button>
+        <span class="mono" style="font-size: 0.75rem;">Whistleblower receives 0.0005 tBNB bounty</span>
+      </div>
+    </div>
+
+    <!-- Live Execution Logs -->
+    <div class="card">
+      <div class="card-title">🖥️ On-Chain & AI Execution Log</div>
+      <div class="log-box" id="logBox">System initialized. Ready for Build Day demo.</div>
+    </div>
+  </div>
+
+  <script>
+    function log(msg) {
+      const box = document.getElementById('logBox');
+      const time = new Date().toLocaleTimeString();
+      box.textContent = `[${time}] ${msg}\n` + box.textContent;
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        
+        if (data.contractAddress) {
+          document.getElementById('contractAddr').innerHTML = 
+            `Contract: <a href="https://testnet.bscscan.com/address/${data.contractAddress}" target="_blank" style="color: #f0b90b;">${data.contractAddress}</a> ↗`;
+        } else {
+          document.getElementById('contractAddr').innerHTML = `Contract: <span style="color:#f6465d;">Not Deployed Yet (Run: npm run deploy)</span>`;
+        }
+        
+        document.getElementById('walletBal').textContent = `Deployer Balance: ${data.balance} tBNB`;
+        
+        if (data.ticket1) {
+          const badge = document.getElementById('ticketBadge');
+          const owner = document.getElementById('ticketOwner');
+          if (data.ticket1.isSlashed) {
+            badge.className = 'ticket-status status-slashed';
+            badge.textContent = '❌ SLASHED / FRAUD';
+            owner.textContent = `Owner: ${data.ticket1.owner} (INVALIDATED)`;
+          } else if (data.ticket1.owner !== '0x0000000000000000000000000000000000000000') {
+            badge.className = 'ticket-status status-valid';
+            badge.textContent = '✅ MINTED & ACTIVE';
+            owner.textContent = `Owner: ${data.ticket1.owner}`;
+          }
+        }
+      } catch (e) {
+        log('Error loading status: ' + e.message);
+      }
+    }
+
+    async function buyTicket() {
+      log('🎫 Submitting buyTicket() at 0.002 tBNB to BSC Testnet...');
+      try {
+        const res = await fetch('/api/buy', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          log(`🎉 ${data.message} Tx: ${data.txHash}`);
+          loadStatus();
+        } else {
+          log(`❌ Error: ${data.error}`);
+        }
+      } catch (e) {
+        log('Error: ' + e.message);
+      }
+    }
+
+    async function attemptScalp() {
+      log('⚠️ Attempting unauthorized 5x resale (0.010 tBNB)...');
+      try {
+        const res = await fetch('/api/scalp-attempt', { method: 'POST' });
+        const data = await res.json();
+        if (data.blockedByContract) {
+          log(`🛡️ SUCCESS: Smart Contract successfully blocked the scalper!`);
+          log(`⚖️ Revert Reason: "${data.revertReason}"`);
+        } else {
+          log('Result: ' + JSON.stringify(data));
+        }
+      } catch (e) {
+        log('Error: ' + e.message);
+      }
+    }
+
+    async function submitReport() {
+      const text = document.getElementById('reportInput').value;
+      log('🕵️ Forwarding whistleblower report to AI Scalper Bouncer Agent...');
+      try {
+        const res = await fetch('/api/report-scalper', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reportText: text })
+        });
+        const data = await res.json();
+        log(`🤖 AI Agent Result: ${data.result}`);
+        loadStatus();
+      } catch (e) {
+        log('Error: ' + e.message);
+      }
+    }
+
+    loadStatus();
+    setInterval(loadStatus, 10000);
+  </script>
+</body>
+</html>
