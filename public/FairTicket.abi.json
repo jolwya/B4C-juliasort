@@ -1,0 +1,11 @@
+[
+  "function buyTicket() external payable returns (uint256)",
+  "function resaleTicket(uint256 ticketId, address newOwner) external payable",
+  "function slashScalpedTicket(uint256 ticketId, address whistleblower, string calldata reason) external",
+  "function redeemAtGate(uint256 ticketId) external",
+  "function getTicket(uint256 ticketId) external view returns (address owner, bool isUsed, bool isSlashed)",
+  "function FACE_VALUE() external view returns (uint256)",
+  "event TicketMinted(uint256 indexed ticketId, address indexed buyer, uint256 price)",
+  "event TicketResold(uint256 indexed ticketId, address indexed oldOwner, address indexed newOwner, uint256 price)",
+  "event TicketSlashed(uint256 indexed ticketId, string reason, address indexed whistleblower)"
+]

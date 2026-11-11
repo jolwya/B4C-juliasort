@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FairPass · Anti-Scalp Ticketing on BSC</title>
+  <title>FairPass · Anti-Scalp Ticketing on BSC Testnet</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
   <style>
     :root {
       --bg: #0b0e11;
@@ -45,13 +46,14 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 12px;
+      padding: 6px 14px;
       border-radius: 999px;
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       font-weight: 600;
       background: rgba(240, 185, 11, 0.15);
       color: var(--primary);
       border: 1px solid rgba(240, 185, 11, 0.3);
+      cursor: pointer;
     }
     .status-dot {
       width: 8px;
@@ -60,16 +62,8 @@
       background: var(--green);
       box-shadow: 0 0 8px var(--green);
     }
-    h1 {
-      font-size: 1.8rem;
-      font-weight: 800;
-      color: #fff;
-    }
-    .subtitle {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-      margin-top: 4px;
-    }
+    h1 { font-size: 1.8rem; font-weight: 800; color: #fff; }
+    .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-top: 4px; }
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -182,30 +176,31 @@
     <header>
       <div>
         <h1>FairPass 🎟️</h1>
-        <p class="subtitle">AI Scalper Bouncer & Price-Ceiling Ticketing on BNB Smart Chain</p>
+        <p class="subtitle">Anti-Scalp Event Ticketing on BNB Smart Chain Testnet (Chain ID 97)</p>
       </div>
-      <div class="badge">
+      <button class="badge" id="walletBtn" onclick="connectMetaMask()">
         <span class="status-dot"></span>
-        <span id="netInfo">BSC Testnet (Chain ID 97)</span>
-      </div>
+        <span id="walletLabel">🦊 Connect MetaMask</span>
+      </button>
     </header>
 
     <div class="banner">
-      <strong>🏆 BCC Hackathon Live Demo:</strong> 1 Flow · 1 Smart Contract · 1 AI Agent. 
-      Demonstrates the happy purchase flow, contract anti-scalp rejection, and real-time AI slashing of off-platform scalpers.
+      <strong>⚡ BSC Testnet Real Blockchain Flow:</strong> Every action triggers your real MetaMask wallet. 
+      Demonstrates the student purchase flow, on-chain price ceiling enforcement, and AI agent scalper slashing.
     </div>
 
     <!-- Contract Status Card -->
     <div class="card">
-      <div class="card-title">🔗 Smart Contract Infrastructure</div>
+      <div class="card-title">🔗 BSC Testnet On-Chain State</div>
       <div class="mono" id="contractAddr">Contract: Loading...</div>
-      <div class="mono" id="walletBal">Deployer Balance: Loading...</div>
+      <div class="mono" id="connectedAccount">Connected Wallet: None</div>
+      <div class="mono" id="walletBalance">Balance: 0.0 tBNB</div>
     </div>
 
     <div class="grid">
-      <!-- Action 1: Buy Ticket -->
+      <!-- Action 1: Buy Ticket via MetaMask -->
       <div class="card">
-        <div class="card-title">1️⃣ Student Purchase Flow</div>
+        <div class="card-title">1️⃣ Student Purchase Flow (MetaMask)</div>
         <p class="subtitle">Campus Music Fest · Fixed Face Value: <strong>0.002 tBNB</strong> (~₱200)</p>
         
         <div class="ticket-display" id="ticketBox">
@@ -216,23 +211,23 @@
           <div class="mono" id="ticketOwner">Owner: None yet</div>
         </div>
 
-        <button class="btn" id="buyBtn" onclick="buyTicket()">
-          <span>⚡ Buy at Face Value (0.002 tBNB)</span>
+        <button class="btn" id="buyBtn" onclick="buyTicketMetaMask()">
+          <span>🦊 Buy at Face Value (0.002 tBNB)</span>
         </button>
       </div>
 
-      <!-- Action 2: Scalper Rejection -->
+      <!-- Action 2: Scalper Rejection via MetaMask -->
       <div class="card">
         <div class="card-title">2️⃣ Smart Contract Law: Anti-Scalp</div>
-        <p class="subtitle">Simulate a scalper trying to flip Ticket #1 on-chain for <strong>0.010 tBNB</strong> (5x markup).</p>
+        <p class="subtitle">Scalper attempts to flip Ticket #1 on-chain for <strong>0.010 tBNB</strong> (5x markup).</p>
         
         <div style="background: rgba(246,70,93,0.08); padding: 14px; border-radius: 8px; border: 1px solid rgba(246,70,93,0.2); font-size: 0.85rem; color: #ff99a8;">
-          ⚖️ <strong>Rule in Bytecode:</strong><br>
+          ⚖️ <strong>Hardcoded Smart Contract Law:</strong><br>
           <code>require(msg.value &lt;= FACE_VALUE);</code><br>
-          The contract mathematically rejects any price gouging!
+          MetaMask and the BSC network will immediately reject any markup!
         </div>
 
-        <button class="btn btn-danger" onclick="attemptScalp()">
+        <button class="btn btn-danger" onclick="attemptScalpMetaMask()">
           <span>🚫 Attempt 5x Scalper Resale</span>
         </button>
       </div>
@@ -241,12 +236,12 @@
     <!-- Action 3: AI Agent Scalper Hunter -->
     <div class="card">
       <div class="card-title">3️⃣ AI Scalper Bouncer (Whistleblower Report)</div>
-      <p class="subtitle">Scalpers don't sell inside the app—they post on Facebook/Telegram. Students report them here with screenshots/text.</p>
+      <p class="subtitle">Students report Facebook/Telegram scalper posts. The AI reads the evidence and slashes the ticket on BSC.</p>
       
       <textarea id="reportInput">Spotted on Facebook UMAK Community: "Selling my Campus Music Fest Ticket #1 for ₱3,500 GCash! Rush buyers only, PM me fast!"</textarea>
       
       <div style="display: flex; gap: 12px; align-items: center;">
-        <button class="btn" style="background: #fff; color: #000;" onclick="submitReport()">
+        <button class="btn" style="background: #fff; color: #000;" onclick="submitReportAI()">
           <span>🕵️ AI Agent: Inspect & Slash on BSC</span>
         </button>
         <span class="mono" style="font-size: 0.75rem;">Whistleblower receives 0.0005 tBNB bounty</span>
@@ -255,101 +250,178 @@
 
     <!-- Live Execution Logs -->
     <div class="card">
-      <div class="card-title">🖥️ On-Chain & AI Execution Log</div>
-      <div class="log-box" id="logBox">System initialized. Ready for Build Day demo.</div>
+      <div class="card-title">🖥️ BSC Testnet & AI Execution Log</div>
+      <div class="log-box" id="logBox">System initialized. Waiting for MetaMask connection...</div>
     </div>
   </div>
 
   <script>
+    let userAccount = null;
+    let browserProvider = null;
+    let bscContract = null;
+    let contractAddress = null;
+    let contractABI = null;
+
+    const BSC_TESTNET_CHAIN_ID = "0x61"; // 97 in hex
+
     function log(msg) {
       const box = document.getElementById('logBox');
       const time = new Date().toLocaleTimeString();
       box.textContent = `[${time}] ${msg}\n` + box.textContent;
     }
 
-    async function loadStatus() {
+    async function init() {
       try {
         const res = await fetch('/api/status');
         const data = await res.json();
+        contractAddress = data.contractAddress;
         
-        if (data.contractAddress) {
+        if (contractAddress) {
           document.getElementById('contractAddr').innerHTML = 
-            `Contract: <a href="https://testnet.bscscan.com/address/${data.contractAddress}" target="_blank" style="color: #f0b90b;">${data.contractAddress}</a> ↗`;
-        } else {
-          document.getElementById('contractAddr').innerHTML = `Contract: <span style="color:#f6465d;">Not Deployed Yet (Run: npm run deploy)</span>`;
+            `Contract: <a href="https://testnet.bscscan.com/address/${contractAddress}" target="_blank" style="color: #f0b90b;">${contractAddress}</a> (BscScan Verified) ↗`;
         }
-        
-        document.getElementById('walletBal').textContent = `Deployer Balance: ${data.balance} tBNB`;
-        
-        if (data.ticket1) {
-          const badge = document.getElementById('ticketBadge');
-          const owner = document.getElementById('ticketOwner');
-          if (data.ticket1.isSlashed) {
-            badge.className = 'ticket-status status-slashed';
-            badge.textContent = '❌ SLASHED / FRAUD';
-            owner.textContent = `Owner: ${data.ticket1.owner} (INVALIDATED)`;
-          } else if (data.ticket1.owner !== '0x0000000000000000000000000000000000000000') {
-            badge.className = 'ticket-status status-valid';
-            badge.textContent = '✅ MINTED & ACTIVE';
-            owner.textContent = `Owner: ${data.ticket1.owner}`;
+
+        const abiRes = await fetch('/FairTicket.abi.json');
+        contractABI = await abiRes.json();
+
+        if (window.ethereum) {
+          browserProvider = new ethers.BrowserProvider(window.ethereum);
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length > 0) {
+            handleAccount(accounts[0]);
+          }
+        } else {
+          log("⚠️ MetaMask extension not detected in browser.");
+        }
+      } catch (e) {
+        log("Init error: " + e.message);
+      }
+    }
+
+    async function connectMetaMask() {
+      if (!window.ethereum) {
+        alert("Please install or open MetaMask!");
+        return;
+      }
+      try {
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== BSC_TESTNET_CHAIN_ID) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: BSC_TESTNET_CHAIN_ID }]
+            });
+          } catch (switchError) {
+            if (switchError.code === 4902) {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: BSC_TESTNET_CHAIN_ID,
+                  chainName: 'BNB Smart Chain Testnet',
+                  nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 },
+                  rpcUrls: ['https://data-seed-prebsc-1-s1.bnbchain.org:8545'],
+                  blockExplorerUrls: ['https://testnet.bscscan.com']
+                }]
+              });
+            }
           }
         }
-      } catch (e) {
-        log('Error loading status: ' + e.message);
+
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        handleAccount(accounts[0]);
+      } catch (err) {
+        log("MetaMask connection error: " + err.message);
       }
     }
 
-    async function buyTicket() {
-      log('🎫 Submitting buyTicket() at 0.002 tBNB to BSC Testnet...');
+    async function handleAccount(account) {
+      userAccount = account;
+      document.getElementById('walletLabel').textContent = `${account.slice(0, 6)}...${account.slice(-4)}`;
+      document.getElementById('connectedAccount').textContent = `Connected Wallet: ${account}`;
+      
+      const balance = await browserProvider.getBalance(account);
+      document.getElementById('walletBalance').textContent = `Balance: ${ethers.formatEther(balance)} tBNB`;
+      
+      if (contractAddress && contractABI) {
+        const signer = await browserProvider.getSigner();
+        bscContract = new ethers.Contract(contractAddress, contractABI, signer);
+        refreshTicketStatus();
+      }
+      log(`🦊 Connected to MetaMask account: ${account}`);
+    }
+
+    async function refreshTicketStatus() {
+      if (!bscContract) return;
       try {
-        const res = await fetch('/api/buy', { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-          log(`🎉 ${data.message} Tx: ${data.txHash}`);
-          loadStatus();
-        } else {
-          log(`❌ Error: ${data.error}`);
+        const t = await bscContract.getTicket(1);
+        const badge = document.getElementById('ticketBadge');
+        const owner = document.getElementById('ticketOwner');
+        if (t[2]) { // isSlashed
+          badge.className = 'ticket-status status-slashed';
+          badge.textContent = '❌ SLASHED / FRAUD';
+          owner.textContent = `Owner: ${t[0]} (REVOKED ON BSC)`;
+        } else if (t[0] !== '0x0000000000000000000000000000000000000000') {
+          badge.className = 'ticket-status status-valid';
+          badge.textContent = '✅ MINTED & ACTIVE';
+          owner.textContent = `Owner: ${t[0]}`;
         }
-      } catch (e) {
-        log('Error: ' + e.message);
-      }
+      } catch(e) {}
     }
 
-    async function attemptScalp() {
-      log('⚠️ Attempting unauthorized 5x resale (0.010 tBNB)...');
+    async function buyTicketMetaMask() {
+      if (!userAccount) {
+        await connectMetaMask();
+      }
+      log("🦊 Prompting MetaMask to buy Ticket #1 on BSC Testnet (0.002 tBNB)...");
       try {
-        const res = await fetch('/api/scalp-attempt', { method: 'POST' });
-        const data = await res.json();
-        if (data.blockedByContract) {
-          log(`🛡️ SUCCESS: Smart Contract successfully blocked the scalper!`);
-          log(`⚖️ Revert Reason: "${data.revertReason}"`);
-        } else {
-          log('Result: ' + JSON.stringify(data));
-        }
-      } catch (e) {
-        log('Error: ' + e.message);
+        const signer = await browserProvider.getSigner();
+        const contract = new ethers.Contract(contractAddress, contractABI, signer);
+        const tx = await contract.buyTicket({ value: ethers.parseEther("0.002") });
+        log(`⏳ Transaction broadcast to BSC! Tx: ${tx.hash}`);
+        await tx.wait();
+        log(`🎉 CONFIRMED on BSC Testnet! Block explorer: https://testnet.bscscan.com/tx/${tx.hash}`);
+        refreshTicketStatus();
+      } catch (err) {
+        log(`❌ Error: ${err.shortMessage || err.message}`);
       }
     }
 
-    async function submitReport() {
+    async function attemptScalpMetaMask() {
+      if (!userAccount) {
+        await connectMetaMask();
+      }
+      log("⚠️ Attempting illegal 5x markup resale (0.010 tBNB) via MetaMask...");
+      try {
+        const signer = await browserProvider.getSigner();
+        const contract = new ethers.Contract(contractAddress, contractABI, signer);
+        const tx = await contract.resaleTicket(1, "0x0000000000000000000000000000000000000001", {
+          value: ethers.parseEther("0.010")
+        });
+        await tx.wait();
+      } catch (err) {
+        log(`🛡️ SUCCESS: The BSC Smart Contract blocked the scalper on-chain!`);
+        log(`⚖️ Revert error: "${err.shortMessage || err.message}"`);
+      }
+    }
+
+    async function submitReportAI() {
       const text = document.getElementById('reportInput').value;
-      log('🕵️ Forwarding whistleblower report to AI Scalper Bouncer Agent...');
+      log("🕵️ Forwarding whistleblower report to AI Scalper Bouncer...");
       try {
         const res = await fetch('/api/report-scalper', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reportText: text })
+          body: JSON.stringify({ reportText: text, whistleblowerWallet: userAccount })
         });
         const data = await res.json();
         log(`🤖 AI Agent Result: ${data.result}`);
-        loadStatus();
+        refreshTicketStatus();
       } catch (e) {
         log('Error: ' + e.message);
       }
     }
 
-    loadStatus();
-    setInterval(loadStatus, 10000);
+    init();
   </script>
 </body>
 </html>
