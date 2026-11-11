@@ -35,16 +35,3 @@ npm start
 * Open your browser to: **`http://localhost:3000`**
 
 ---
-
-## 🎬 60-Second Hackathon Demo Flow (Pitch Deck Script)
-
-1. **The Happy Path:** Click **"Buy at Face Value (0.002 tBNB)"**.
-   * Shows sub-second confirmation on BSC Testnet. Ticket #1 is issued.
-2. **The Smart Contract Law (The Blocked Moment):** Click **"Attempt 5x Scalper Resale"**.
-   * Simulates a scalper trying to flip the ticket for 0.010 tBNB.
-   * **Result:** The smart contract reverts on-screen:  
-     `ANTI-SCALP VIOLATION: Resale price exceeds face value cap!`
-3. **The AI Scalper Bouncer (The "Wow" Factor):** Click **"AI Agent: Inspect & Slash"**.
-   * Simulates a student reporting a Facebook post: *"Selling Ticket #1 for ₱3,500"*.
-   * The AI parses the post, identifies price gouging, and calls `slashScalpedTicket()` on BSC Testnet.
-   * Ticket #1 turns red (**SLASHED / FRAUD**), and the whistleblower receives a bounty!
