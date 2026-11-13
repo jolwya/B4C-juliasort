@@ -1,4 +1,4 @@
-# MyTiket 🎟️
+# Tickie 🎟️
 > **Anti-Scalp Event Ticketing with Smart Contract Price Ceilings & AI Bouncer**  
 > Built for the **BCC Hackathon 2026** on **BNB Smart Chain Testnet (Chain ID 97)**.
 
